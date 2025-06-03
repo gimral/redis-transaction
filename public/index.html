@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Key-Value Setter</title>
+</head>
+
+<body>
+    <h1>Set Key-Value in Redis</h1>
+    <form action="/set-key" method="POST">
+        <label for="key">Key:</label>
+        <input type="text" id="key" name="key" required>
+        <br>
+        <label for="value">Value:</label>
+        <input type="text" id="value" name="value" required>
+        <br>
+        <label for="reference">Reference:</label>
+        <input type="text" id="reference" name="reference" required>
+        <br>
+        <button type="submit">Set Key</button>
+    </form>
+</body>
+
+</html>

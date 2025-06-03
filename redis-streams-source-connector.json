@@ -1,0 +1,13 @@
+{
+  "name": "redis-streams-source-connector",
+  "config": {
+    "connector.class": "com.redis.kafka.connect.RedisStreamSourceConnector",
+    "tasks.max": "1",
+    "redis.uri": "redis://redis:6379",
+    "redis.stream.name": "balance-events",
+    "topic": "redis-balance-events",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

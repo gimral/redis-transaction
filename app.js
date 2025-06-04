@@ -34,7 +34,13 @@ app.use(express.urlencoded({ extended: true }));
 // Route to handle form submission
 app.post('/set-key', async (req, res) => {
   const { key, value, reference } = req.body;
-  const redisKey = `balance:${key}`;
+  // Divide keys into a fixed number of buckets to avoid creating too many unique streams/keys
+  const NUM_BUCKETS = 4; // You can adjust this number as needed
+  const bucket = Math.abs(hashCode(key)) % NUM_BUCKETS;
+  const hashTag = `{${bucket}}`;
+  const redisKey = `balance:${hashTag}:${key}`;
+  const dedupKey = `dedup-keys:${hashTag}`;
+  const streamKey = `balance-events:${hashTag}`;
   let retryCount = 0;
   const maxRetries = 3;
   let success = false;
@@ -42,10 +48,10 @@ app.post('/set-key', async (req, res) => {
   while (retryCount < maxRetries && !success) {
     try {
       // Watch the dedup-keys set and the balance key for changes
-      await client.watch('dedup-keys', redisKey);
+      await client.watch(dedupKey, redisKey);
 
       // Check if the reference already exists in the deduplication set
-      const isDuplicate = await client.sIsMember('dedup-keys', reference);
+      const isDuplicate = await client.sIsMember(dedupKey, reference);
       if (isDuplicate) {
         await client.unwatch(); // Unwatch if duplicate detected
         return res.status(400).send('Duplicate reference detected');
@@ -64,8 +70,8 @@ app.post('/set-key', async (req, res) => {
       // Use a transaction to update the balance and add the reference atomically
       const multi = client.multi();
       multi.json.set(redisKey, '.', { balance: newBalance, updatedOn });
-      multi.sAdd('dedup-keys', reference);
-      multi.xAdd('balance-events', '*', {
+      multi.sAdd(dedupKey, reference);
+      multi.xAdd(streamKey, '*', {
         reference,
         balance: newBalance.toString(),
         updatedOn: updatedOn.toString()
@@ -89,6 +95,16 @@ app.post('/set-key', async (req, res) => {
     return res.status(409).send('Transaction failed after maximum retries');
   }
 });
+
+// Simple hash function for bucketing
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+}
 
 // Start the server
 app.listen(port, () => {
